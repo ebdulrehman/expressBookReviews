@@ -2,6 +2,7 @@ const express = require('express');
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
+const axios = require('axios');
 const public_users = express.Router();
 
 
@@ -23,64 +24,101 @@ public_users.post("/register", (req, res) => {
 });
 
 
-public_users.get('/',function (req, res) {
-  return res.status(200).json(JSON.stringify(books, null, 4));
+public_users.get('/', async function (req, res) {
+    try {
+        const getBooks = new Promise((resolve) => {
+            resolve(books);
+        });
+
+        const booksList = await getBooks;
+        return res.status(200).json(booksList);
+    } catch (error) {
+        return res.status(500).json({ message: "Go somewhere else", error: error.message });
+    }
 });
 
 
-public_users.get('/isbn/:isbn', function (req, res) {
+public_users.get('/isbn/:isbn', async function (req, res) {
     const isbn = req.params.isbn;
-    const book = books[isbn];
 
-    if (book) {
+    try {
+        const getBook = new Promise((resolve, reject) => {
+            const book = books[isbn];
+            if (book) {
+                resolve(book);
+            } else {
+                reject(new Error("Go somewhere else!"));
+            }
+        });
+
+        const book = await getBook;
         return res.status(200).json(book);
-    } else {
-        return res.status(404).json({ message: "Go somewhere else!" });
+    } catch (error) {
+        return res.status(404).json({ message: error.message });
     }
 });
   
 
-public_users.get('/author/:author', function (req, res) {
+public_users.get('/author/:author', async function (req, res) {
     const author = req.params.author;
-    const bookKeys = Object.keys(books);
-    const matchingBooks = [];
 
-    bookKeys.forEach((key) => {
-        if (books[key].author.toLowerCase() === author.toLowerCase()) {
-            matchingBooks.push({
-                isbn: key,
-                title: books[key].title,
-                reviews: books[key].reviews
+    try {
+        const getBooksByAuthor = new Promise((resolve, reject) => {
+            const bookKeys = Object.keys(books);
+            const matchingBooks = [];
+
+            bookKeys.forEach((key) => {
+                if (books[key].author.toLowerCase() === author.toLowerCase()) {
+                    matchingBooks.push({
+                        isbn: key,
+                        title: books[key].title,
+                        reviews: books[key].reviews
+                    });
+                }
             });
-        }
-    });
 
-    if (matchingBooks.length > 0) {
-        return res.status(200).json(matchingBooks);
-    } else {
-        return res.status(404).json({ message: "No books found for this author" });
+            if (matchingBooks.length > 0) {
+                resolve(matchingBooks);
+            } else {
+                reject(new Error("No books found for this author"));
+            }
+        });
+
+        const booksList = await getBooksByAuthor;
+        return res.status(200).json(booksList);
+    } catch (error) {
+        return res.status(404).json({ message: error.message });
     }
 });
 
 
-public_users.get('/title/:title', function (req, res) {
+
+public_users.get('/title/:title', async function (req, res) {
     const requestedTitle = req.params.title;
-    const matchingBooks = [];
 
-    const keys = Object.keys(books);
+    try {
+        const getBooksByTitle = new Promise((resolve, reject) => {
+            const matchingBooks = [];
+            const keys = Object.keys(books);
 
-    keys.forEach((isbn) => {
-        let book = books[isbn];
-        
-        if (book.title.toLowerCase() === requestedTitle.toLowerCase()) {
-            matchingBooks.push(book);
-        }
-    });
+            keys.forEach((isbn) => {
+                let book = books[isbn];
+                if (book.title.toLowerCase() === requestedTitle.toLowerCase()) {
+                    matchingBooks.push(book);
+                }
+            });
 
-    if (matchingBooks.length > 0) {
-        return res.status(200).json(matchingBooks);
-    } else {
-        return res.status(404).json({ message: "No book found with this title" });
+            if (matchingBooks.length > 0) {
+                resolve(matchingBooks);
+            } else {
+                reject(new Error("No book found with this title"));
+            }
+        });
+
+        const booksList = await getBooksByTitle;
+        return res.status(200).json(booksList);
+    } catch (error) {
+        return res.status(404).json({ message: error.message });
     }
 });
 
